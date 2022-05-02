@@ -44,7 +44,7 @@ public class Environment extends AbstractBehavior<Environment.EnvironmentCommand
         this.temperatureTimeScheduler.startTimerAtFixedRate(new TemperatureChange(Optional.of(temperature)), Duration.ofSeconds(5));
         this.weatherTimeScheduler.startTimerAtFixedRate(new WeatherChange(Optional.of(Weather.SUNNY)), Duration.ofSeconds(20));
 
-        getContext().getLog().info("Environment initialized");
+        getContext().getLog().info("Environment started");
     }
 
     @Override
