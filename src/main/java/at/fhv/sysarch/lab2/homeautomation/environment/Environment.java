@@ -100,7 +100,7 @@ public class Environment extends AbstractBehavior<Environment.EnvironmentCommand
 
     private Behavior<EnvironmentCommand> onWeatherChange(WeatherChanger wc) {
         Weather currWeather = wc.currentWeather.get();
-        Weather nextWeather = currWeather == Weather.SUNNY ? Weather.RAINY : Weather.SUNNY;
+        Weather nextWeather = currWeather == Weather.SUNNY ? Weather.CLOUDY : Weather.SUNNY;
         getContext().getLog().info("WeatherChange received {}", currWeather);
         this.weather = nextWeather;
         getContext().getLog().info("Weather changed to {}", nextWeather);
