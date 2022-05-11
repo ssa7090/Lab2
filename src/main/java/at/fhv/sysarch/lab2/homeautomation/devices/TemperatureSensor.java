@@ -1,4 +1,4 @@
-package at.fhv.sysarch.lab2.homeautomation.devices;
+/*package at.fhv.sysarch.lab2.homeautomation.devices;
 
 import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
@@ -7,6 +7,8 @@ import akka.actor.typed.javadsl.AbstractBehavior;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Receive;
+import at.fhv.sysarch.lab2.homeautomation.environment.Environment;
+import at.fhv.sysarch.lab2.homeautomation.environment.Temperature;
 
 import java.util.Optional;
 
@@ -15,10 +17,18 @@ public class TemperatureSensor extends AbstractBehavior<TemperatureSensor.Temper
     public interface TemperatureCommand {}
 
     public static final class ReadTemperature implements TemperatureCommand {
-        final Optional<Double> value;
+        final Optional<Temperature> temperature;
 
-        public ReadTemperature(Optional<Double> value) {
-            this.value = value;
+        public ReadTemperature(Optional<Temperature> temperature) {
+            this.temperature = temperature;
+        }
+    }
+
+    public static final class WrappedEnvironmentTemperatureReadResponse implements TemperatureCommand {
+        final Environment.TemperatureReadResponse response;
+
+        public WrappedEnvironmentTemperatureReadResponse(Environment.TemperatureReadResponse response) {
+            this.response = response;
         }
     }
 
@@ -36,6 +46,7 @@ public class TemperatureSensor extends AbstractBehavior<TemperatureSensor.Temper
         this.groupId = groupId;
         this.deviceId = deviceId;
 
+        context.messageAdapter(Environment.TemperatureReadResponse.class, WrappedEnvironmentTemperatureReadResponse::new);
         getContext().getLog().info("TemperatureSensor started");
     }
 
@@ -43,13 +54,20 @@ public class TemperatureSensor extends AbstractBehavior<TemperatureSensor.Temper
     public Receive<TemperatureCommand> createReceive() {
         return newReceiveBuilder()
                 .onMessage(ReadTemperature.class, this::onReadTemperature)
+                .onMessage(WrappedEnvironmentTemperatureReadResponse.class, this::onWrappedEnvironmentTemperatureReadResponse)
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
     }
 
     private Behavior<TemperatureCommand> onReadTemperature(ReadTemperature r) {
-        getContext().getLog().info("TemperatureSensor received {}", r.value.get());
-        this.airCondition.tell(new AirCondition.EnrichedTemperature(r.value, Optional.of("Celsius")));
+        getContext().getLog().info("TemperatureSensor received {}", r.temperature.get());
+        this.airCondition.tell(new AirCondition.EnrichedTemperature(Optional.of(r.temperature.get())));
+        return this;
+    }
+
+    private Behavior<TemperatureCommand> onWrappedEnvironmentTemperatureReadResponse(WrappedEnvironmentTemperatureReadResponse r) {
+        getContext().getLog().info("TemperatureSensor received {}", r.response.get());
+        this.airCondition.tell(new AirCondition.EnrichedTemperature(Optional.of(r.temperature.get())));
         return this;
     }
 
@@ -57,5 +75,6 @@ public class TemperatureSensor extends AbstractBehavior<TemperatureSensor.Temper
         getContext().getLog().info("TemperatureSensor actor {}-{} stopped", groupId, deviceId);
         return this;
     }
-
 }
+
+ */

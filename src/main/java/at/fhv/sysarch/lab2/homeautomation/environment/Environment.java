@@ -1,7 +1,9 @@
-package at.fhv.sysarch.lab2.homeautomation.environment;
+/*package at.fhv.sysarch.lab2.homeautomation.environment;
 
+import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.*;
+import at.fhv.sysarch.lab2.homeautomation.devices.TemperatureSensor;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -38,12 +40,28 @@ public class Environment extends AbstractBehavior<Environment.EnvironmentCommand
         }
     }
 
+    public static final class TemperatureReadRequest implements EnvironmentCommand {
+        ActorRef<TemperatureSensor.TemperatureCommand> sensor;
+
+        public TemperatureReadRequest(ActorRef<TemperatureSensor.TemperatureCommand> sensor) {
+            this.sensor = sensor;
+        }
+    }
+
+    public static final class TemperatureReadResponse implements EnvironmentCommand {
+        final Optional<Temperature> temperature;
+
+        public TemperatureReadResponse(Optional<Temperature> temperature) { this.temperature = temperature; }
+    }
+
     private final Random random = new Random();
     private final double[] TEMP_SEASONAL_MEANS = { -2.2, -1.3, 7.4, 12.1, 15.9, 17.3, 17.1, 13.2, 9.2, 3.4, -1 };
     private final double TEMP_SEASONAL_MEAN_DELTA = 3.0;
 
     private int seasonalCycle = 0;
     private double temperature = nextRandomTemperatureDelta(TEMP_SEASONAL_MEANS[seasonalCycle]);
+
+    private String temperatureUnit = "C°";
     private Weather weather = Weather.SUNNY;
 
     public static Behavior<EnvironmentCommand> create() {
@@ -52,6 +70,7 @@ public class Environment extends AbstractBehavior<Environment.EnvironmentCommand
 
     private Environment(ActorContext<EnvironmentCommand> context, TimerScheduler<EnvironmentCommand> timerScheduler) {
         super(context);
+        // TODO: Überlegen, warum die initialen Werte erhalten bleiben bzw. wie man auf die geänderten Werte kommen kann
         timerScheduler.startTimerAtFixedRate(new SeasonalCycleChanger(Optional.of(seasonalCycle)), Duration.ofSeconds(15));
         timerScheduler.startTimerAtFixedRate(new TemperatureChanger(Optional.of(temperature)), Duration.ofSeconds(5));
         timerScheduler.startTimerAtFixedRate(new WeatherChanger(Optional.of(weather)), Duration.ofSeconds(10));
@@ -64,6 +83,7 @@ public class Environment extends AbstractBehavior<Environment.EnvironmentCommand
                 .onMessage(SeasonalCycleChanger.class, this::onSeasonalCycleChange)
                 .onMessage(TemperatureChanger.class, this::onTemperatureChange)
                 .onMessage(WeatherChanger.class, this::onWeatherChange)
+                .onMessage(TemperatureReadRequest.class, this::onTemperatureReadRequest)
                 .build();
     }
 
@@ -106,4 +126,13 @@ public class Environment extends AbstractBehavior<Environment.EnvironmentCommand
         getContext().getLog().info("Weather changed to {}", nextWeather);
         return this;
     }
+
+    private Behavior<EnvironmentCommand> onTemperatureReadRequest(TemperatureReadRequest tempReq) {
+        tempReq.sensor.tell(new TemperatureReadResponse(Optional.of(new Temperature(temperature, temperatureUnit))));
+        return this;
+    }
+
+    private Behavior<EnvironmentCommand> onTemperatureReadResponse(TemperatureReadResponse tempResp) {
+    }
 }
+*/

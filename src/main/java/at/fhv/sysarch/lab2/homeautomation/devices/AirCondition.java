@@ -6,6 +6,7 @@ import akka.actor.typed.javadsl.AbstractBehavior;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Receive;
+import at.fhv.sysarch.lab2.homeautomation.environment.Temperature;
 
 /**
  * This class shows ONE way to switch behaviors in object-oriented style. Another approach is the use of static
@@ -31,12 +32,10 @@ public class AirCondition extends AbstractBehavior<AirCondition.AirConditionComm
     }
 
     public static final class EnrichedTemperature implements AirConditionCommand {
-        Optional<Double> value;
-        Optional<String> unit;
+        Optional<Temperature> temperature;
 
-        public EnrichedTemperature(Optional<Double> value, Optional<String> unit) {
-            this.value = value;
-            this.unit = unit;
+        public EnrichedTemperature(Optional<Temperature> temperature) {
+            this.temperature = temperature;
         }
     }
 
@@ -66,9 +65,9 @@ public class AirCondition extends AbstractBehavior<AirCondition.AirConditionComm
     }
 
     private Behavior<AirConditionCommand> onReadTemperature(EnrichedTemperature r) {
-        getContext().getLog().info("Aircondition reading {}", r.value.get());
+        getContext().getLog().info("Aircondition reading {}", r.temperature.get().getTemperatureValue());
         // TODO: process temperature
-        if(r.value.get() >= 15) {
+        if(r.temperature.get().getTemperatureValue() >= 15) {
             getContext().getLog().info("Aircondition actived");
             this.active = true;
         }
