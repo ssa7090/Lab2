@@ -17,6 +17,7 @@ import at.fhv.sysarch.lab2.homeautomation.environment.WeatherEnvironment;
 
 import java.util.Optional;
 import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class UI extends AbstractBehavior<UI.UICommand> {
 
@@ -42,8 +43,6 @@ public class UI extends AbstractBehavior<UI.UICommand> {
 
     private  UI(ActorContext<UICommand> context, ActorRef<TemperatureEnvironment.TemperatureEnvironmentCommand> tempEnv, ActorRef<WeatherEnvironment.WeatherEnvironmentCommand> weatherEnv, ActorRef<AirCondition.AirConditionCommand> airCondition, ActorRef<MediaStation.MediaStationCommand> mediaStation, ActorRef<Fridge.FridgeCommand> fridge) {
         super(context);
-        // TODO: implement actor and behavior as needed
-        // TODO: move UI initialization to appropriate place
         this.airCondition = airCondition;
         this.tempEnv = tempEnv;
         this.weatherEnv = weatherEnv;
@@ -73,8 +72,15 @@ public class UI extends AbstractBehavior<UI.UICommand> {
                 getContext().getLog().error(orderResponse.errorMessage);
             }
         } else if (response instanceof Fridge.StoredProductsResponse) {
-            int productCount = 0;
-            ((Fridge.StoredProductsResponse) response).storedProducts.forEach(p -> getContext().getLog().info(++productCount + ".)  " + p));
+            getContext().getLog().info("Listing stored products:");
+            for (var product : ((Fridge.StoredProductsResponse) response).storedProducts) {
+                getContext().getLog().info(String.valueOf(product));
+            }
+        } else if (response instanceof Fridge.OrderHistoryResponse) {
+            getContext().getLog().info("Listing order history:");
+            for (var order : ((Fridge.OrderHistoryResponse) response).orderHistory) {
+                getContext().getLog().info(String.valueOf(order));
+            }
         } else {
             return Behaviors.unhandled();
         }
@@ -87,7 +93,6 @@ public class UI extends AbstractBehavior<UI.UICommand> {
     }
 
     public void runCommandLine() {
-        // TODO: Create Actor for UI Input-Handling
         Scanner scanner = new Scanner(System.in);
         String[] input = null;
         String reader = "";
@@ -95,7 +100,6 @@ public class UI extends AbstractBehavior<UI.UICommand> {
 
         while (!reader.equalsIgnoreCase("quit") && scanner.hasNextLine()) {
             reader = scanner.nextLine();
-            // TODO: change input handling
             String[] command = reader.split(" ");
             // environments
             if(command[0].equals("t")) {
@@ -118,7 +122,15 @@ public class UI extends AbstractBehavior<UI.UICommand> {
             if(command[0].equals("o")) {
                 this.fridge.tell(new Fridge.OrderRequest(getContext().getSelf(), command[1], Integer.valueOf(command[2])));
             }
-            // TODO: process Input
+            if(command[0].equals("qp")) {
+                this.fridge.tell(new Fridge.StoredProductsRequest(getContext().getSelf()));
+            }
+            if(command[0].equals("qo")) {
+                this.fridge.tell(new Fridge.OrderHistoryRequest(getContext().getSelf()));
+            }
+            if(command[0].equals("c")) {
+                this.fridge.tell(new Fridge.ConsumeRequest(getContext().getSystem().ignoreRef(), command[1]));
+            }
         }
         getContext().getLog().info("UI done");
     }

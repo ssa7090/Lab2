@@ -42,7 +42,6 @@ public class TemperatureEnvironment extends AbstractBehavior<TemperatureEnvironm
     private TemperatureEnvironment(ActorContext<TemperatureEnvironmentCommand> context, ActorRef<TemperatureSensor.TemperatureCommand> temperatureSensor, TimerScheduler<TemperatureEnvironmentCommand> temperatureTimeScheduler) {
         super(context);
         this.temperatureSensor = temperatureSensor;
-        // TODO: Herausfinden, warum die initialen Werte erhalten bleiben bzw. wie man auf die geänderten Werte kommen kann
         this.temperatureTimeScheduler = temperatureTimeScheduler;
         this.temperatureTimeScheduler.startTimerAtFixedRate(new TemperatureAutoChange(), Duration.ofSeconds(20));
         getContext().getLog().info("TemperatureEnvironment started");

@@ -34,7 +34,6 @@ public class HomeAutomationController extends AbstractBehavior<Void>{
 
     private  HomeAutomationController(ActorContext<Void> context) {
         super(context);
-        // TODO: consider guardians and hierarchies. Who should create and communicate with which Actors?
         this.airCondition = getContext().spawn(AirCondition.create("1", "1"), "AirCondition");
         this.blinds = getContext().spawn(Blinds.create("2", "1"), "Blinds");
         this.mediaStation = getContext().spawn(MediaStation.create(this.blinds, "3", "1"), "MediaStation");

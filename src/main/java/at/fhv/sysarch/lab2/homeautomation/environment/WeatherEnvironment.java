@@ -38,7 +38,6 @@ public class WeatherEnvironment extends AbstractBehavior<WeatherEnvironment.Weat
     private WeatherEnvironment(ActorContext<WeatherEnvironmentCommand> context, ActorRef<WeatherSensor.WeatherCommand> weatherSensor, TimerScheduler<WeatherEnvironment.WeatherEnvironmentCommand> weatherTimeScheduler) {
         super(context);
         this.weatherSensor = weatherSensor;
-        // TODO: Herausfinden, warum die initialen Werte erhalten bleiben bzw. wie man auf die geänderten Werte kommen kann
         this.weatherTimeScheduler = weatherTimeScheduler;
         this.weatherTimeScheduler.startTimerAtFixedRate(new WeatherAutoChange(), Duration.ofSeconds(30));
         getContext().getLog().info("WeatherEnvironment started");

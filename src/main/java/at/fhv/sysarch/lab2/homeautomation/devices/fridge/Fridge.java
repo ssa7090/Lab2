@@ -1,5 +1,6 @@
 package at.fhv.sysarch.lab2.homeautomation.devices.fridge;
 
+import akka.actor.Actor;
 import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.PostStop;
@@ -83,6 +84,36 @@ public class Fridge extends AbstractBehavior<Fridge.FridgeCommand> {
         }
     }
 
+    public static final class OrderHistoryRequest implements FridgeRequest {
+        final ActorRef<UI.UICommand> replyTo;
+
+        public OrderHistoryRequest(ActorRef<UI.UICommand> replyTo) { this.replyTo = replyTo; }
+    }
+
+    public static final class OrderHistoryResponse implements FridgeResponse {
+        public final List<Order> orderHistory;
+
+        public OrderHistoryResponse(List<Order> orderHistory) { this.orderHistory = orderHistory; }
+    }
+
+    public static final class ConsumeRequest implements FridgeRequest {
+        final ActorRef<UI.UICommand> replyTo;
+        final String productName;
+
+        public ConsumeRequest(ActorRef<UI.UICommand> replyTo, String productName) {
+            this.replyTo = replyTo;
+            this.productName = productName;
+        }
+    }
+
+    public static final class ConsumeResponse implements FridgeResponse {
+        final boolean isConsumed;
+
+        public ConsumeResponse(boolean isConsumed) {
+            this.isConsumed = isConsumed;
+        }
+    }
+
     private static final List<Product> PRODUCTS = Arrays.asList(
             new Product("apple", BigDecimal.valueOf(0.99), BigDecimal.valueOf(100)),
             new Product("pear", BigDecimal.valueOf(0.75), BigDecimal.valueOf(150)),
@@ -98,7 +129,7 @@ public class Fridge extends AbstractBehavior<Fridge.FridgeCommand> {
     private final ActorRef<SpaceSensor.SpaceSensorCommand> spaceSensor;
 
     private List<Order> orderHistory = new ArrayList<>();
-    private List<Product> storedProducts = new ArrayList<>();
+    private List<Product> storedProducts;
 
     public Fridge(ActorContext<FridgeCommand> context, String groupId, String deviceId, ActorRef<WeightSensor.WeightSensorCommand> weightSensor, ActorRef<SpaceSensor.SpaceSensorCommand> spaceSensor) {
         super(context);
@@ -106,7 +137,7 @@ public class Fridge extends AbstractBehavior<Fridge.FridgeCommand> {
         this.deviceId = deviceId;
         this.weightSensor = weightSensor;
         this.spaceSensor = spaceSensor;
-        Collections.copy(PRODUCTS, storedProducts);
+        storedProducts = new ArrayList<>(PRODUCTS);
         getContext().getLog().info("Fridge started");
     }
 
@@ -120,7 +151,9 @@ public class Fridge extends AbstractBehavior<Fridge.FridgeCommand> {
                 .onMessage(OrderRequest.class, this::onOrderRequest)
                 .onMessage(OrderProcessSuccess.class, this::onOrderProcessSuccess)
                 .onMessage(OrderProcessFailure.class, this::onOrderProcessFailure)
-                .onMessage()
+                .onMessage(StoredProductsRequest.class, this::onStoredProductsRequest)
+                .onMessage(OrderHistoryRequest.class, this::onOrderHistoryRequest)
+                .onMessage(ConsumeRequest.class, this::onConsumeRequest)
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
     }
@@ -157,6 +190,43 @@ public class Fridge extends AbstractBehavior<Fridge.FridgeCommand> {
         getContext().getLog().info("Order processing failure");
 
         opf.originator.tell(new UI.WrappedFridgeResponse(new OrderResponse(opf.failureMessage)));
+        return this;
+    }
+
+    private Behavior<FridgeCommand> onStoredProductsRequest(StoredProductsRequest req) {
+        req.replyTo.tell(new UI.WrappedFridgeResponse(new StoredProductsResponse(this.storedProducts)));
+        return this;
+    }
+
+    private Behavior<FridgeCommand> onOrderHistoryRequest(OrderHistoryRequest req) {
+        req.replyTo.tell(new UI.WrappedFridgeResponse(new OrderHistoryResponse(this.orderHistory)));
+        return this;
+    }
+
+    private Behavior<FridgeCommand> onConsumeRequest(ConsumeRequest req) {
+        Optional<Product> consumeProductOpt = storedProducts.stream()
+                        .filter(p -> p.getProductName().equals(req.productName))
+                        .findFirst();
+
+        if (consumeProductOpt.isPresent()) {
+            storedProducts.remove(consumeProductOpt.get());
+            req.replyTo.tell(new UI.WrappedFridgeResponse(new ConsumeResponse(true)));
+            weightSensor.tell(new WeightSensor.ChangeWeightSensor(consumeProductOpt.get().getWeight().multiply(BigDecimal.valueOf(-1))));
+            spaceSensor.tell(new SpaceSensor.ChangeSpaceSensor(-1));
+            getContext().getLog().info("Product {} consumed", consumeProductOpt.get().getProductName());
+
+            boolean inStock = storedProducts.stream()
+                    .filter(p -> p.getProductName().equals(req.productName))
+                    .findAny()
+                    .isPresent();
+
+            if (!inStock) {
+                getContext().getSelf().tell(new OrderRequest(req.replyTo, req.productName, 1));
+                getContext().getLog().info("Product {} is out of stock - OrderRequest has been issued", consumeProductOpt.get().getProductName());
+            }
+        } else {
+            req.replyTo.tell(new UI.WrappedFridgeResponse(new ConsumeResponse(false)));
+        }
         return this;
     }
 

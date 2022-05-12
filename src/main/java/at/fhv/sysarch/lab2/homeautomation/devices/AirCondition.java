@@ -65,7 +65,7 @@ public class AirCondition extends AbstractBehavior<AirCondition.AirConditionComm
     }
 
     private Behavior<AirConditionCommand> onReadTemperature(UpdateTemperature r) {
-        // TODO: process temperature
+
         if(r.temperature.getTemperatureValue() >= 15) {
             if (!active) {
                 getContext().getLog().info("Aircondition activated");
