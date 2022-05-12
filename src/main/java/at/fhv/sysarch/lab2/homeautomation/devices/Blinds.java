@@ -8,50 +8,37 @@ import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Receive;
 import at.fhv.sysarch.lab2.homeautomation.environment.Weather;
 
-import java.util.Optional;
-
-//Rules:
-//If the weather is sunny the blinds will close.
-//If the weather is not sunny the blinds will open (unless a movie is playing).
-//If a movie is playing the blinds are closed.
-
 public class Blinds extends AbstractBehavior<Blinds.BlindsCommand> {
 
     public interface BlindsCommand {
     }
 
-    public static final class BlindsMovieControl implements BlindsCommand {
+    public static final class UpdateMoviePlayStatus implements BlindsCommand {
+        final boolean movieIsPlaying;
 
-        boolean movieIsPlaying;
-
-        public BlindsMovieControl(boolean movieIsPlaying) {
+        public UpdateMoviePlayStatus(boolean movieIsPlaying) {
             this.movieIsPlaying = movieIsPlaying;
         }
     }
 
-    public static final class BlindsWeatherControl implements BlindsCommand {
+    public static final class UpdateWeather implements BlindsCommand {
+        final Weather weather;
 
-        Weather weather;
-
-        public BlindsWeatherControl(Weather weather) {
+        public UpdateWeather(Weather weather) {
             this.weather = weather;
         }
     }
 
-    private boolean blindsOpened;
     private final String groupId;
     private final String deviceId;
-    private Optional<Weather> currentWeather;
-    private Optional<Boolean> movieIsPlaying;
-
+    private boolean blindsClosed = false;
+    private boolean movieIsPlaying = false;
+    private Weather currentWeather;
 
     public Blinds(ActorContext<BlindsCommand> context, String groupId, String deviceId) {
         super(context);
-        this.blindsOpened = false;
         this.groupId = groupId;
         this.deviceId = deviceId;
-        this.currentWeather = Optional.empty(); // warum
-        this.movieIsPlaying = Optional.empty(); //warum
 
         getContext().getLog().info("Blinds started");
     }
@@ -63,66 +50,37 @@ public class Blinds extends AbstractBehavior<Blinds.BlindsCommand> {
     @Override
     public Receive<Blinds.BlindsCommand> createReceive() {
         return newReceiveBuilder()
-                .onMessage(BlindsMovieControl.class, this::onControlBlindsMovie)
-                .onMessage(BlindsWeatherControl.class, this::onControlBlindsWeather)
+                .onMessage(UpdateMoviePlayStatus.class, this::onUpdateMoviePlayStatus)
+                .onMessage(UpdateWeather.class, this::onUpdateWeather)
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
     }
 
-   /* private Behavior<BlindsCommand> onControlBlinds() {
-        getContext().getLog().info("Blinds reading the mediastation {}", movieIsPlaying);
-
+    private Behavior<BlindsCommand> controlBlinds() {
         //Either a movie is playing or the weather is cloudy
-        if (movieIsPlaying.isPresent() && movieIsPlaying.get() || currentWeather.get().equals(Weather.CLOUDY)) {
-            blindsOpened = false;
-            getContext().getLog().info("Blinds closed, because either a movie is playing or the weather is cloudy");
+        if (movieIsPlaying || currentWeather.equals(Weather.SUNNY)) {
+            blindsClosed = true;
+            getContext().getLog().info("Blinds closed");
         }
         else {
-            blindsOpened = true;
+            blindsClosed = false;
+            getContext().getLog().info("Blinds opened");
         }
-        return  Behaviors.same();
-    }*/
-
-    private Behavior<BlindsCommand> onControlBlinds() {
-        getContext().getLog().info("Blinds reading the weather {}", currentWeather);
-
-        //If the weather is sunny the blinds will close
-        if (currentWeather.isPresent()) {
-            if (currentWeather.get().equals(Weather.SUNNY)) {
-                blindsOpened = false;
-                getContext().getLog().info("Blinds reading the weather is sunny, Blinds closed");
-            }
-            //If the weather is not sunny the blinds will open (unless a movie is playing)
-            else if (currentWeather.get().equals(Weather.CLOUDY)) {
-                //Movie is running: Close blinds
-                if (movieIsPlaying.isPresent() && movieIsPlaying.get()) {
-                    blindsOpened = false;
-                    getContext().getLog().info("Blinds reading a movie is running, Blinds closed");
-                }
-                //No movie is running: Open blinds
-                else {
-                    blindsOpened = true;
-                    getContext().getLog().info("Blinds reading no movie is running, Blinds opened");
-                }
-            }
-        //If a movie is playing the blinds are closed
-        } else if (movieIsPlaying.isPresent() && movieIsPlaying.get()) {
-            blindsOpened = false;
-            getContext().getLog().info("Blinds reading a movie is running, Blinds closed");
-        }
-        return Behaviors.same();
+        return this;
     }
 
-    private Behavior<BlindsCommand> onControlBlindsMovie(BlindsMovieControl message) {
-        this.movieIsPlaying = Optional.of(message.movieIsPlaying);
-        onControlBlinds();
-        return Behaviors.same();
+    private Behavior<BlindsCommand> onUpdateMoviePlayStatus(UpdateMoviePlayStatus umps) {
+        getContext().getLog().info("Blinds received movie play status {}", umps.movieIsPlaying);
+        this.movieIsPlaying = umps.movieIsPlaying;
+        controlBlinds();
+        return this;
     }
 
-    private Behavior<BlindsCommand> onControlBlindsWeather(BlindsWeatherControl message) {
-        this.currentWeather = Optional.of(message.weather);
-        onControlBlinds();
-        return Behaviors.same();
+    private Behavior<BlindsCommand> onUpdateWeather(UpdateWeather uw) {
+        getContext().getLog().info("Blinds received weather {}", uw.weather);
+        this.currentWeather = uw.weather;
+        controlBlinds();
+        return this;
     }
 
     private Blinds onPostStop() {

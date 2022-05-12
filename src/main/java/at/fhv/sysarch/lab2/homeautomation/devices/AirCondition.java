@@ -18,23 +18,22 @@ import at.fhv.sysarch.lab2.homeautomation.environment.Temperature;
  * For an example with functional-style please refer to: {@link https://doc.akka.io/docs/akka/current/typed/style-guide.html#functional-versus-object-oriented-style}
  *
  */
-import java.util.Optional;
 
 public class AirCondition extends AbstractBehavior<AirCondition.AirConditionCommand> {
     public interface AirConditionCommand {}
 
     public static final class PowerAirCondition implements AirConditionCommand {
-        final Optional<Boolean> value;
+        final boolean value;
 
-        public PowerAirCondition(Optional<Boolean> value) {
+        public PowerAirCondition(boolean value) {
             this.value = value;
         }
     }
 
-    public static final class EnrichedTemperature implements AirConditionCommand {
-        Optional<Temperature> temperature;
+    public static final class UpdateTemperature implements AirConditionCommand {
+        Temperature temperature;
 
-        public EnrichedTemperature(Optional<Temperature> temperature) {
+        public UpdateTemperature(Temperature temperature) {
             this.temperature = temperature;
         }
     }
@@ -43,6 +42,7 @@ public class AirCondition extends AbstractBehavior<AirCondition.AirConditionComm
     private final String deviceId;
     private boolean active = false;
     private boolean poweredOn = true;
+
 
     public AirCondition(ActorContext<AirConditionCommand> context, String groupId, String deviceId) {
         super(context);
@@ -58,31 +58,33 @@ public class AirCondition extends AbstractBehavior<AirCondition.AirConditionComm
     @Override
     public Receive<AirConditionCommand> createReceive() {
         return newReceiveBuilder()
-                .onMessage(EnrichedTemperature.class, this::onReadTemperature)
+                .onMessage(UpdateTemperature.class, this::onReadTemperature)
                 .onMessage(PowerAirCondition.class, this::onPowerAirConditionOff)
                 .onSignal(PostStop.class, signal -> onPostStop())
                 .build();
     }
 
-    private Behavior<AirConditionCommand> onReadTemperature(EnrichedTemperature r) {
-        getContext().getLog().info("Aircondition reading {}", r.temperature.get().getTemperatureValue());
+    private Behavior<AirConditionCommand> onReadTemperature(UpdateTemperature r) {
+        getContext().getLog().info("Aircondition reading {}", r.temperature.getTemperatureValue());
         // TODO: process temperature
-        if(r.temperature.get().getTemperatureValue() >= 15) {
-            getContext().getLog().info("Aircondition actived");
-            this.active = true;
+        if(r.temperature.getTemperatureValue() >= 15) {
+            if (!active) {
+                getContext().getLog().info("Aircondition activated");
+                this.active = true;
+            }
         }
-        else {
-            getContext().getLog().info("Aircondition deactived");
+        else if (active) {
+            getContext().getLog().info("Aircondition deactivated");
             this.active =  false;
         }
 
-        return Behaviors.same();
+        return this;
     }
 
     private Behavior<AirConditionCommand> onPowerAirConditionOff(PowerAirCondition r) {
         getContext().getLog().info("Turning Aircondition to {}", r.value);
 
-        if(r.value.get() == false) {
+        if(r.value == false) {
             return this.powerOff();
         }
         return this;
@@ -91,9 +93,9 @@ public class AirCondition extends AbstractBehavior<AirCondition.AirConditionComm
     private Behavior<AirConditionCommand> onPowerAirConditionOn(PowerAirCondition r) {
         getContext().getLog().info("Turning Aircondition to {}", r.value);
 
-        if(r.value.get() == true) {
+        if(r.value == true) {
             return Behaviors.receive(AirConditionCommand.class)
-                    .onMessage(EnrichedTemperature.class, this::onReadTemperature)
+                    .onMessage(UpdateTemperature.class, this::onReadTemperature)
                     .onMessage(PowerAirCondition.class, this::onPowerAirConditionOff)
                     .onSignal(PostStop.class, signal -> onPostStop())
                     .build();
